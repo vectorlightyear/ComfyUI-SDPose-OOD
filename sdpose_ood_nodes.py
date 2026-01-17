@@ -104,6 +104,9 @@ except Exception as e:
 SDPOSE_MODEL_DIR = os.path.join(folder_paths.models_dir, "SDPose_OOD")
 YOLO_MODEL_DIR = os.path.join(folder_paths.models_dir, "yolo")
 
+# 支持自定义模型目录（通过环境变量指定，不会被云存储挂载覆盖）
+SDPOSE_CUSTOM_MODEL_DIR = os.environ.get("SDPOSE_CUSTOM_MODEL_DIR", "/opt/sdpose_models")
+
 folder_paths.add_model_folder_path("SDPose_OOD", SDPOSE_MODEL_DIR, is_default=True)
 folder_paths.add_model_folder_path("yolo", YOLO_MODEL_DIR, is_default=False)
 
@@ -607,11 +610,18 @@ class SDPoseOODLoader:
     def get_model_path(self, repo_name, repo_id=None):
         """
         查找模型路径，优先级：
+        0. 自定义模型目录（SDPOSE_CUSTOM_MODEL_DIR，默认 /opt/sdpose_models）
         1. ComfyUI SDPose_OOD 文件夹中的本地模型
         2. HuggingFace 缓存中的模型（通过 huggingface-cli download 下载的）
         3. 默认的 SDPOSE_MODEL_DIR
         """
-        # 1. 首先检查 ComfyUI 模型文件夹
+        # 0. 首先检查自定义模型目录（不会被云存储挂载覆盖）
+        custom_model_path = os.path.join(SDPOSE_CUSTOM_MODEL_DIR, repo_name)
+        if os.path.exists(os.path.join(custom_model_path, "unet")):
+            print(f"SDPose Node: Found model in custom folder: {custom_model_path}")
+            return custom_model_path
+
+        # 1. 检查 ComfyUI 模型文件夹
         model_pathes = folder_paths.get_folder_paths("SDPose_OOD")
         for path in model_pathes:
             model_path = os.path.join(path, repo_name)
@@ -698,15 +708,17 @@ class SDPoseOODLoader:
             hf_offline = os.environ.get("HF_HUB_OFFLINE", "0") == "1"
             hf_home = os.environ.get('HF_HOME', os.path.expanduser('~/.cache/huggingface'))
             hf_hub_cache = os.path.join(hf_home, 'hub')
+            repo_name = repo_id.split('/')[-1]
             if hf_offline:
                 raise FileNotFoundError(
                     f"SDPose Node: Model '{repo_id}' not found and HF_HUB_OFFLINE=1.\n"
                     f"Searched locations:\n"
-                    f"  1. ComfyUI models folder: {SDPOSE_MODEL_DIR}/{repo_id.split('/')[-1]}\n"
+                    f"  0. Custom folder: {SDPOSE_CUSTOM_MODEL_DIR}/{repo_name}\n"
+                    f"  1. ComfyUI models folder: {SDPOSE_MODEL_DIR}/{repo_name}\n"
                     f"  2. HuggingFace cache: {hf_hub_cache}\n"
                     f"Please pre-download the model using:\n"
-                    f"  huggingface-cli download {repo_id}\n"
-                    f"Or manually place the model in: {SDPOSE_MODEL_DIR}/{repo_id.split('/')[-1]}"
+                    f"  huggingface-cli download {repo_id} --local-dir {SDPOSE_CUSTOM_MODEL_DIR}/{repo_name}\n"
+                    f"Or set env SDPOSE_CUSTOM_MODEL_DIR to your model directory."
                 )
             print(f"SDPose Node: Downloading model from {repo_id} to {model_path}")
             snapshot_download(repo_id=repo_id, local_dir=model_path, local_dir_use_symlinks=False)
