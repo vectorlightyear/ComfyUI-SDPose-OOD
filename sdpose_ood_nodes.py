@@ -572,7 +572,7 @@ class YOLOModelLoader:
 
     RETURN_TYPES = ("YOLO_MODEL",)
     FUNCTION = "load_yolo"
-    CATEGORY = "SDPose"
+    CATEGORY = "NewSDPose"
 
     def load_yolo(self, model_name):
         if not YOLO_AVAILABLE:
@@ -602,7 +602,7 @@ class SDPoseOODLoader:
 
     RETURN_TYPES = ("SDPOSE_MODEL",)
     FUNCTION = "load_sdpose_model"
-    CATEGORY = "SDPose"
+    CATEGORY = "NewSDPose"
 
     def get_model_path(self, repo_name, repo_id=None):
         """
@@ -845,7 +845,7 @@ class GroundingDinoModelLoader_SDPose:
             }
         }
 
-    CATEGORY = "SDPose" # Match SDPose category
+    CATEGORY = "NewSDPose" # Match SDPose category
     FUNCTION = "main"
     RETURN_TYPES = ("GROUNDING_DINO_MODEL",)
 
@@ -909,7 +909,7 @@ class SDPoseOODProcessor:
     RETURN_TYPES = ("IMAGE", "POSE_KEYPOINT")
     RETURN_NAMES = ("images", "pose_keypoint")
     FUNCTION = "process_sequence"
-    CATEGORY = "SDPose"
+    CATEGORY = "NewSDPose"
 
     def process_sequence(
         self,
@@ -1359,15 +1359,15 @@ class SDPoseOODProcessor:
 
 # --- Node Mappings for ComfyUI ---
 NODE_CLASS_MAPPINGS = {
-    "SDPoseOODLoader": SDPoseOODLoader,
-    "SDPoseOODProcessor": SDPoseOODProcessor,
-    "YOLOModelLoader": YOLOModelLoader,
-    "GroundingDinoModelLoader_SDPose": GroundingDinoModelLoader_SDPose, # 添加这一行
+    "NewSDPoseOODLoader": SDPoseOODLoader,
+    "NewSDPoseOODProcessor": SDPoseOODProcessor,
+    "NewYOLOModelLoader": YOLOModelLoader,
+    "NewGroundingDinoModelLoader_SDPose": GroundingDinoModelLoader_SDPose,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "SDPoseOODLoader": "Load SDPose Model",
-    "SDPoseOODProcessor": "Run SDPose Estimation",
-    "YOLOModelLoader": "Load YOLO Model",
-    "GroundingDinoModelLoader_SDPose": "Load GroundingDINO Model (SDPose)", # 添加这一行
+    "NewSDPoseOODLoader": "Load NewSDPose Model",
+    "NewSDPoseOODProcessor": "Run NewSDPose Estimation",
+    "NewYOLOModelLoader": "Load YOLO Model (NewSDPose)",
+    "NewGroundingDinoModelLoader_SDPose": "Load GroundingDINO Model (NewSDPose)",
 }
