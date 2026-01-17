@@ -633,33 +633,51 @@ class SDPoseOODLoader:
         获取 HuggingFace 缓存中模型的实际路径
         支持通过 huggingface-cli download 下载的模型
         """
+        # 动态获取 HF 缓存目录（而不是使用导入时的常量）
+        hf_home = os.environ.get('HF_HOME', os.path.expanduser('~/.cache/huggingface'))
+        hf_hub_cache = os.path.join(hf_home, 'hub')
+
+        print(f"SDPose Node: Searching HF cache at: {hf_hub_cache}")
+
+        # 方案1：使用 scan_cache_dir 扫描
         try:
-            # 尝试从缓存中查找模型
-            cache_info = scan_cache_dir()
+            cache_info = scan_cache_dir(hf_hub_cache)
             for repo in cache_info.repos:
                 if repo.repo_id == repo_id:
-                    # 找到最新的 revision
                     for revision in repo.revisions:
                         snapshot_path = revision.snapshot_path
                         if os.path.exists(os.path.join(snapshot_path, "unet")):
+                            print(f"SDPose Node: Found model via scan_cache_dir: {snapshot_path}")
                             return str(snapshot_path)
         except Exception as e:
             print(f"SDPose Node: Warning - Failed to scan HF cache: {e}")
 
-        # 备选方案：直接构造缓存路径
+        # 方案2：直接构造缓存路径
         try:
-            # HF 缓存路径格式: {HF_HUB_CACHE}/models--{org}--{repo}/snapshots/{hash}
             repo_folder = f"models--{repo_id.replace('/', '--')}"
-            cache_repo_path = os.path.join(HF_HUB_CACHE, repo_folder, "snapshots")
+            cache_repo_path = os.path.join(hf_hub_cache, repo_folder, "snapshots")
+            print(f"SDPose Node: Checking direct path: {cache_repo_path}")
+
             if os.path.exists(cache_repo_path):
-                # 获取最新的 snapshot
                 snapshots = os.listdir(cache_repo_path)
+                print(f"SDPose Node: Found snapshots: {snapshots}")
                 if snapshots:
-                    # 按修改时间排序，取最新的
                     snapshots.sort(key=lambda x: os.path.getmtime(os.path.join(cache_repo_path, x)), reverse=True)
                     snapshot_path = os.path.join(cache_repo_path, snapshots[0])
                     if os.path.exists(os.path.join(snapshot_path, "unet")):
+                        print(f"SDPose Node: Found model via direct path: {snapshot_path}")
                         return snapshot_path
+                    else:
+                        # 列出 snapshot 目录内容以便调试
+                        contents = os.listdir(snapshot_path) if os.path.exists(snapshot_path) else []
+                        print(f"SDPose Node: Snapshot contents (no 'unet' found): {contents}")
+            else:
+                # 列出 hub 目录内容以便调试
+                if os.path.exists(hf_hub_cache):
+                    hub_contents = os.listdir(hf_hub_cache)
+                    print(f"SDPose Node: HF hub contents: {hub_contents}")
+                else:
+                    print(f"SDPose Node: HF hub cache directory does not exist: {hf_hub_cache}")
         except Exception as e:
             print(f"SDPose Node: Warning - Failed to check HF cache path: {e}")
 
@@ -678,12 +696,14 @@ class SDPoseOODLoader:
         if not os.path.exists(os.path.join(model_path, "unet")):
             # 检查是否处于离线模式
             hf_offline = os.environ.get("HF_HUB_OFFLINE", "0") == "1"
+            hf_home = os.environ.get('HF_HOME', os.path.expanduser('~/.cache/huggingface'))
+            hf_hub_cache = os.path.join(hf_home, 'hub')
             if hf_offline:
                 raise FileNotFoundError(
                     f"SDPose Node: Model '{repo_id}' not found and HF_HUB_OFFLINE=1.\n"
                     f"Searched locations:\n"
                     f"  1. ComfyUI models folder: {SDPOSE_MODEL_DIR}/{repo_id.split('/')[-1]}\n"
-                    f"  2. HuggingFace cache: {HF_HUB_CACHE}\n"
+                    f"  2. HuggingFace cache: {hf_hub_cache}\n"
                     f"Please pre-download the model using:\n"
                     f"  huggingface-cli download {repo_id}\n"
                     f"Or manually place the model in: {SDPOSE_MODEL_DIR}/{repo_id.split('/')[-1]}"
