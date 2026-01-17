@@ -38,8 +38,7 @@ except ImportError:
         supported_pt_extensions = {".pt", ".pth", ".ckpt", ".safetensors"}
         folder_names_and_paths = {}
     folder_paths = MockFolderPaths()
-from huggingface_hub import snapshot_download, try_to_load_from_cache, scan_cache_dir
-from huggingface_hub.constants import HF_HUB_CACHE
+from huggingface_hub import snapshot_download
 import sys
 from pathlib import Path
 import glob
@@ -643,26 +642,14 @@ class SDPoseOODLoader:
         获取 HuggingFace 缓存中模型的实际路径
         支持通过 huggingface-cli download 下载的模型
         """
-        # 动态获取 HF 缓存目录（而不是使用导入时的常量）
+        # 动态获取 HF 缓存目录
         hf_home = os.environ.get('HF_HOME', os.path.expanduser('~/.cache/huggingface'))
         hf_hub_cache = os.path.join(hf_home, 'hub')
 
         print(f"SDPose Node: Searching HF cache at: {hf_hub_cache}")
 
-        # 方案1：使用 scan_cache_dir 扫描
-        try:
-            cache_info = scan_cache_dir(hf_hub_cache)
-            for repo in cache_info.repos:
-                if repo.repo_id == repo_id:
-                    for revision in repo.revisions:
-                        snapshot_path = revision.snapshot_path
-                        if os.path.exists(os.path.join(snapshot_path, "unet")):
-                            print(f"SDPose Node: Found model via scan_cache_dir: {snapshot_path}")
-                            return str(snapshot_path)
-        except Exception as e:
-            print(f"SDPose Node: Warning - Failed to scan HF cache: {e}")
-
-        # 方案2：直接构造缓存路径
+        # 直接构造缓存路径
+        # HF 缓存路径格式: {HF_HUB_CACHE}/models--{org}--{repo}/snapshots/{hash}
         try:
             repo_folder = f"models--{repo_id.replace('/', '--')}"
             cache_repo_path = os.path.join(hf_hub_cache, repo_folder, "snapshots")
@@ -678,11 +665,9 @@ class SDPoseOODLoader:
                         print(f"SDPose Node: Found model via direct path: {snapshot_path}")
                         return snapshot_path
                     else:
-                        # 列出 snapshot 目录内容以便调试
                         contents = os.listdir(snapshot_path) if os.path.exists(snapshot_path) else []
                         print(f"SDPose Node: Snapshot contents (no 'unet' found): {contents}")
             else:
-                # 列出 hub 目录内容以便调试
                 if os.path.exists(hf_hub_cache):
                     hub_contents = os.listdir(hf_hub_cache)
                     print(f"SDPose Node: HF hub contents: {hub_contents}")
